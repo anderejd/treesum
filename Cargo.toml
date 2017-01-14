@@ -1,0 +1,9 @@
+[package]
+name = "treesum"
+version = "0.1.0"
+authors = ["Anders <rajder@gmail.com>"]
+
+[dependencies]
+chan = "0.1.18"
+rust-crypto = "^0.2"
+walkdir = "1"
