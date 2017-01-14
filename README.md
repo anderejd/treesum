@@ -1,2 +1,3 @@
 # treesum
-My first Rust experiment.
+
+Experimental code for my personal enjoyment and education, not production ready ;)
