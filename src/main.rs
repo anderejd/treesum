@@ -12,6 +12,8 @@ use std::io::Read;
 use std::path::Path;
 use std::io;
 use walkdir::WalkDir;
+use std::thread;
+// use chan::Receiver;
 
 fn calc_hash(p: &Path, hasher: &mut Sha1, buf: &mut [u8]) -> io::Result<String> {
     hasher.reset();
@@ -27,7 +29,6 @@ fn calc_hash(p: &Path, hasher: &mut Sha1, buf: &mut [u8]) -> io::Result<String> 
 }
 
 fn do_it(root: &Path) -> io::Result<()> {
-    use std::thread;
     let jobs = {
         let (s, r) = chan::sync(0);
         let pb = root.to_path_buf();
@@ -55,7 +56,7 @@ fn do_it(root: &Path) -> io::Result<()> {
         let jobs = jobs.clone();
         thread::spawn(move || {
             let mut hasher = Sha1::new();
-            let mut buf = [0; 4096];
+            let mut buf = [0; 1024 * 8];
             for e in jobs {
                 let hex = match calc_hash(e.path(), &mut hasher, &mut buf) {
                     Ok(h) => h,
@@ -70,8 +71,46 @@ fn do_it(root: &Path) -> io::Result<()> {
     Ok(())
 }
 
+use walkdir::Iter;
+
+fn fun(e: walkdir::Result<walkdir::DirEntry>) -> i32 {
+    let e = match e {
+        Ok(e) => e,
+        Err(_) => return 0, //? TODO: send Result with error
+    };
+    if !e.file_type().is_file() {
+        return 0;
+    }
+    1
+}
+
+fn take_iterator_test<T, W, I>(it: T, worker: W) -> i32
+    where T: IntoIterator<Item = I>,
+          T: std::marker::Send + 'static,
+          W: std::marker::Send + 'static,
+          W: Fn(I) -> i32
+{
+    let mut i = 0;
+    let t = thread::spawn(move || {
+        for e in it {
+            i += worker(e);
+        }
+    });
+    t.join();
+    i
+}
+
+fn do_it_2(root: &Path) -> io::Result<()> {
+    let pb = root.to_path_buf();
+    let it = WalkDir::new(pb).into_iter();
+    let i = take_iterator_test(it, fun);
+    println!("{}", i);
+    Ok(())
+}
+
 fn main() {
     let root = env::args().nth(1).unwrap_or(".".to_string());
     let root = Path::new(root.as_str());
-    do_it(root).expect("Hello error!");
+    do_it(root).expect("Hello error 1!");
+    do_it_2(root).expect("Hello error 2!");
 }
