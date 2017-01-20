@@ -71,9 +71,7 @@ fn do_it(root: &Path) -> io::Result<()> {
     Ok(())
 }
 
-use walkdir::Iter;
-
-fn fun(e: walkdir::Result<walkdir::DirEntry>) -> i32 {
+fn process_dir_entry(e: walkdir::Result<walkdir::DirEntry>) -> i32 {
     let e = match e {
         Ok(e) => e,
         Err(_) => return 0, //? TODO: send Result with error
@@ -84,26 +82,30 @@ fn fun(e: walkdir::Result<walkdir::DirEntry>) -> i32 {
     1
 }
 
-fn take_iterator_test<T, W, I>(it: T, worker: W) -> i32
-    where T: IntoIterator<Item = I>,
-          T: std::marker::Send + 'static,
-          W: std::marker::Send + 'static,
-          W: Fn(I) -> i32
+/// factory is needed to allow iterators missing std::marker::Send
+/// TODO: spawn worker threads
+/// TODO: use channels
+/// TODO: return channel Receiver as Iterator
+fn fan_out_in<I, F, T, W>(factory: F, worker: W) -> i32
+    where F: 'static + std::marker::Send + FnOnce() -> Box<T>,
+          W: 'static + std::marker::Send + Fn(I) -> i32,
+          T: IntoIterator<Item = I>
 {
-    let mut i = 0;
     let t = thread::spawn(move || {
-        for e in it {
+        let mut i = 0;
+        let it = factory();
+        for e in it.into_iter() {
             i += worker(e);
         }
+        i
     });
-    t.join();
-    i
+    t.join().unwrap()
 }
 
 fn do_it_2(root: &Path) -> io::Result<()> {
     let pb = root.to_path_buf();
-    let it = WalkDir::new(pb).into_iter();
-    let i = take_iterator_test(it, fun);
+    let iterator_factory = || Box::new(WalkDir::new(pb));
+    let i = fan_out_in(iterator_factory, process_dir_entry);
     println!("{}", i);
     Ok(())
 }
