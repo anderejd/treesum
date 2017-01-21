@@ -13,7 +13,7 @@ use std::path::Path;
 use std::io;
 use walkdir::WalkDir;
 use std::thread;
-// use chan::Receiver;
+use std::sync::Arc;
 
 fn calc_hash(p: &Path, hasher: &mut Sha1, buf: &mut [u8]) -> io::Result<String> {
     hasher.reset();
@@ -82,30 +82,51 @@ fn process_dir_entry(e: walkdir::Result<walkdir::DirEntry>) -> i32 {
     1
 }
 
-/// factory is needed to allow iterators missing std::marker::Send
+/// factory is needed to allow iterators without std::marker::Send
 /// TODO: spawn worker threads
 /// TODO: use channels
 /// TODO: return channel Receiver as Iterator
-fn fan_out_in<I, F, T, W>(factory: F, worker: W) -> i32
-    where F: 'static + std::marker::Send + FnOnce() -> Box<T>,
-          W: 'static + std::marker::Send + Fn(I) -> i32,
+fn fan_out_in<F, X, I, T>(factory: F, xform: X) -> i32
+    where F: 'static + std::marker::Send + FnOnce() -> T,
+          X: 'static + std::marker::Send + std::marker::Sync + Fn(I) -> i32 + 'static,
+          I: 'static + std::marker::Send,
           T: IntoIterator<Item = I>
 {
-    let t = thread::spawn(move || {
-        let mut i = 0;
-        let it = factory();
-        for e in it.into_iter() {
-            i += worker(e);
+    let jobs_rx = {
+        let (tx, rx) = chan::sync(0);
+        thread::spawn(move || {
+            for e in factory().into_iter() {
+                tx.send(e);
+            }
+        });
+        rx
+    };
+    let results_rx = {
+        let (tx, rx) = chan::sync(0);
+        let xform = Arc::new(xform);
+        for _ in 0..8 {
+            let tx = tx.clone();
+            let jobs_rx = jobs_rx.clone();
+            let xform = xform.clone();
+            thread::spawn(move || {
+                for e in jobs_rx {
+                    tx.send(xform(e));
+                }
+            });
         }
-        i
-    });
-    t.join().unwrap()
+        rx
+    };
+    let mut i = 0i32;
+    for r in results_rx {
+        i += r;
+    }
+    i
 }
 
 fn do_it_2(root: &Path) -> io::Result<()> {
     let pb = root.to_path_buf();
-    let iterator_factory = || Box::new(WalkDir::new(pb));
-    let i = fan_out_in(iterator_factory, process_dir_entry);
+    let iter_factory = || WalkDir::new(pb);
+    let i = fan_out_in(iter_factory, process_dir_entry);
     println!("{}", i);
     Ok(())
 }
