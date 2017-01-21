@@ -16,7 +16,7 @@ use std::thread;
 use std::sync::Arc;
 use walkdir::DirEntry;
 
-/// The purpose of this newtype is to hide the channel implementation.
+/// The purpose of this newtype is to hide the channel.
 struct GatherIter<T>(chan::Iter<T>);
 impl<T> Iterator for GatherIter<T> {
     type Item = T;
