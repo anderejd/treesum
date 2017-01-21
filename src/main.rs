@@ -10,6 +10,8 @@ use std::env;
 use std::fs::File;
 use std::io::Read;
 use std::io;
+use std::marker::Send;
+use std::marker::Sync;
 use std::path::Path;
 use std::sync::Arc;
 use std::thread;
@@ -29,11 +31,11 @@ impl<T> Iterator for GatherIter<T> {
 /// in the correct producer / worker thread.
 /// TODO: Figure out how to simplify this trait mess :)
 fn scatter_gather<PC, XC, P, X, J, R>(producer_ctor: PC, xform_ctor: XC) -> GatherIter<R>
-    where PC: 'static + std::marker::Send + FnOnce() -> P,
-          XC: 'static + std::marker::Send + std::marker::Sync + Fn() -> X,
+    where PC: 'static + Send + FnOnce() -> P,
+          XC: 'static + Send + Sync + Fn() -> X,
           X: FnMut(J) -> R,
-          J: 'static + std::marker::Send,
-          R: 'static + std::marker::Send,
+          J: 'static + Send,
+          R: 'static + Send,
           P: IntoIterator<Item = J>
 {
     let jobs_rx = {
