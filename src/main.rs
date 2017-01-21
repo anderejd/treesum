@@ -48,6 +48,7 @@ fn scatter_gather<PC, XC, P, X, J, R>(producer_ctor: PC, xform_ctor: XC) -> Gath
     let results_rx = {
         let (tx, rx) = chan::sync(0);
         let xform_ctor = Arc::new(xform_ctor); // TODO: Investigate why this is needed.
+        // TODO: Find and use a num_cpu function.
         for _ in 0..8 {
             let tx = tx.clone();
             let jobs_rx = jobs_rx.clone();
