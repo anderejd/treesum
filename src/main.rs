@@ -9,12 +9,12 @@ use self::crypto::sha1::Sha1;
 use std::env;
 use std::fs::File;
 use std::io::Read;
-use std::path::Path;
 use std::io;
-use walkdir::WalkDir;
-use std::thread;
+use std::path::Path;
 use std::sync::Arc;
+use std::thread;
 use walkdir::DirEntry;
+use walkdir::WalkDir;
 
 /// The purpose of this newtype is to hide the channel.
 struct GatherIter<T>(chan::Iter<T>);
