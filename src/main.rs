@@ -38,21 +38,22 @@ enum TreesumError {
     WalkDir(walkdir::Error),
 }
 
-fn process_dir_entry(e: walkdir::Result<DirEntry>) -> Result<String> {
-    let e = e.map_err(TreesumError::WalkDir)?;
-    if !e.file_type().is_file() {
-        return Err(TreesumError::Ignored(e));
-    }
-    let mut hasher = Sha1::new();
-    let mut buf = [0; 1024 * 8];
-    calc_hash(e.path(), &mut hasher, &mut buf).map_err(TreesumError::Io)
-}
-
-
-fn do_it_2(root: &Path) -> io::Result<()> {
+fn process_root(root: &Path) -> io::Result<()> {
     let pb = root.to_path_buf();
-    let iter_factory = || WalkDir::new(pb);
-    let results = scatter_gather(iter_factory, process_dir_entry);
+    let producer_ctor = || WalkDir::new(pb);
+    let xform_ctor = || {
+        let mut hasher = Sha1::new();
+        let mut buf = [0; 1024 * 8];
+        let f = move |e: walkdir::Result<DirEntry>| -> Result<String> {
+            let e = e.map_err(TreesumError::WalkDir)?;
+            if !e.file_type().is_file() {
+                return Err(TreesumError::Ignored(e));
+            }
+            calc_hash(e.path(), &mut hasher, &mut buf).map_err(TreesumError::Io)
+        };
+        f
+    };
+    let results = scatter_gather(producer_ctor, xform_ctor);
     for r in results {
         println!("{:?}", r);
     }
@@ -62,7 +63,7 @@ fn do_it_2(root: &Path) -> io::Result<()> {
 fn main() {
     let root = env::args().nth(1).unwrap_or(".".to_string());
     let root = Path::new(root.as_str());
-    do_it_2(root).expect("Hello error 2!");
+    process_root(root).expect("Hello error 2!");
 }
 
 /// The purpose of this newtype is to hide the channel implementation.
@@ -74,21 +75,20 @@ impl<T> Iterator for GatherIter<T> {
     }
 }
 
-/// factory is needed to allow iterators without std::marker::Send
-/// TODO: spawn worker threads
-/// TODO: use channels
-/// TODO: return channel Receiver as Iterator
-fn scatter_gather<F, X, J, R, I>(factory: F, xform: X) -> GatherIter<R>
-    where F: 'static + std::marker::Send + FnOnce() -> I,
-          X: 'static + std::marker::Send + std::marker::Sync + Fn(J) -> R,
+/// producer_ctor and xform_xtor is needed to allow construction
+/// in the correct producer / worker thread.
+fn scatter_gather<PC, XC, P, X, J, R>(producer_ctor: PC, xform_ctor: XC) -> GatherIter<R>
+    where PC: 'static + std::marker::Send + FnOnce() -> P,
+          XC: 'static + std::marker::Send + std::marker::Sync + Fn() -> X,
+          X: FnMut(J) -> R,
           J: 'static + std::marker::Send,
           R: 'static + std::marker::Send,
-          I: IntoIterator<Item = J>
+          P: IntoIterator<Item = J>
 {
     let jobs_rx = {
         let (tx, rx) = chan::sync(0);
         thread::spawn(move || {
-            for e in factory().into_iter() {
+            for e in producer_ctor().into_iter() {
                 tx.send(e);
             }
         });
@@ -96,12 +96,13 @@ fn scatter_gather<F, X, J, R, I>(factory: F, xform: X) -> GatherIter<R>
     };
     let results_rx = {
         let (tx, rx) = chan::sync(0);
-        let xform = Arc::new(xform); // TODO: Investigate why this is needed.
+        let xform_ctor = Arc::new(xform_ctor); // TODO: Investigate why this is needed.
         for _ in 0..8 {
             let tx = tx.clone();
             let jobs_rx = jobs_rx.clone();
-            let xform = xform.clone();
+            let xform_ctor = xform_ctor.clone();
             thread::spawn(move || {
+                let mut xform = xform_ctor();
                 for e in jobs_rx {
                     tx.send(xform(e));
                 }
