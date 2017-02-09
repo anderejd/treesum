@@ -1,7 +1,7 @@
 #![deny(warnings)]
 
-extern crate chan;
 extern crate crypto;
+extern crate sgiter;
 extern crate walkdir;
 
 use self::crypto::digest::Digest;
@@ -10,62 +10,9 @@ use std::env;
 use std::fs::File;
 use std::io::Read;
 use std::io;
-use std::marker::Send;
-use std::marker::Sync;
 use std::path::Path;
-use std::sync::Arc;
-use std::thread;
 use walkdir::DirEntry;
 use walkdir::WalkDir;
-
-/// The purpose of this newtype is to hide the channel.
-struct GatherIter<T>(chan::Iter<T>);
-impl<T> Iterator for GatherIter<T> {
-    type Item = T;
-    fn next(&mut self) -> Option<T> {
-        self.0.next()
-    }
-}
-
-/// producer_ctor and xform_ctor is needed to allow construction
-/// in the correct producer / worker thread.
-/// TODO: Figure out how to simplify this trait mess :)
-fn scatter_gather<PC, XC, P, X, J, R>(producer_ctor: PC, xform_ctor: XC) -> GatherIter<R>
-    where PC: 'static + Send + FnOnce() -> P,
-          XC: 'static + Send + Sync + Fn() -> X,
-          X: FnMut(J) -> R,
-          J: 'static + Send,
-          R: 'static + Send,
-          P: IntoIterator<Item = J>
-{
-    let jobs_rx = {
-        let (tx, rx) = chan::sync(0);
-        thread::spawn(move || {
-            for e in producer_ctor().into_iter() {
-                tx.send(e);
-            }
-        });
-        rx
-    };
-    let results_rx = {
-        let (tx, rx) = chan::sync(0);
-        let xform_ctor = Arc::new(xform_ctor); // TODO: Investigate why this is needed.
-        // TODO: Find and use a num_cpu function.
-        for _ in 0..8 {
-            let tx = tx.clone();
-            let jobs_rx = jobs_rx.clone();
-            let xform_ctor = xform_ctor.clone();
-            thread::spawn(move || {
-                let mut xform = xform_ctor();
-                for e in jobs_rx {
-                    tx.send(xform(e));
-                }
-            });
-        }
-        rx
-    };
-    GatherIter(results_rx.iter())
-}
 
 fn calc_hash(p: &Path, hasher: &mut Sha1, buf: &mut [u8]) -> io::Result<String> {
     hasher.reset();
@@ -80,8 +27,6 @@ fn calc_hash(p: &Path, hasher: &mut Sha1, buf: &mut [u8]) -> io::Result<String> 
     Ok(hasher.result_str())
 }
 
-type Result<T> = std::result::Result<T, Error>;
-
 #[derive(Debug)]
 enum Error {
     Io(io::Error),
@@ -90,29 +35,53 @@ enum Error {
 }
 
 fn process_root(root: &Path) -> io::Result<()> {
+    use sgiter::scatter_gather;
     let pb = root.to_path_buf();
     let producer_ctor = || WalkDir::new(pb);
     let xform_ctor = || {
         let mut hasher = Sha1::new();
         let mut buf = [0; 1024 * 8];
-        let f = move |e: walkdir::Result<DirEntry>| -> Result<String> {
+        let f = move |e: walkdir::Result<DirEntry>| {
             let e = e.map_err(Error::WalkDir)?;
             if !e.file_type().is_file() {
                 return Err(Error::Ignored(e));
             }
-            calc_hash(e.path(), &mut hasher, &mut buf).map_err(Error::Io)
+            calc_hash(e.path(), &mut hasher, &mut buf)
+                .map_err(Error::Io)
+                .map(|s| (e, s))
         };
         f
     };
     let results = scatter_gather(producer_ctor, xform_ctor);
+    //let sort_on_hash = true;
+    let mut tuples = vec![];
     for r in results {
-        println!("{:?}", r);
+        match r {
+            Ok(t) => tuples.push(t),
+            Err(e) => print_err(e),
+        }
+    }
+    tuples.sort_by(|a, b| a.1.cmp(&b.1));
+    for t in tuples {
+        println!("{}\t{}", t.1, t.0.path().display());
     }
     Ok(())
+}
+
+fn print_err(e: Error) {
+    let verbose = true;
+    match e {
+        Error::Ignored(ent) => {
+            if verbose {
+                println!("ignored: {}", ent.path().display())
+            }
+        }
+        _ => println!("ERROR: {:?}", e),
+    }
 }
 
 fn main() {
     let root = env::args().nth(1).unwrap_or(".".to_string());
     let root = Path::new(root.as_str());
-    process_root(root).expect("Hello error 2!");
+    process_root(root).unwrap()
 }

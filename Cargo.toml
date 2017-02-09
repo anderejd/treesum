@@ -1,9 +1,9 @@
 [package]
 name = "treesum"
 version = "0.1.0"
-authors = ["Anders <rajder@gmail.com>"]
+authors = ["anderejd <rajder@gmail.com>"]
 
 [dependencies]
-chan = "0.1.18"
-rust-crypto = "^0.2"
+sgiter = { git = "https://github.com/anderejd/sgiter" }
+rust-crypto = "0.2"
 walkdir = "1"
