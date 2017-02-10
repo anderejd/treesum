@@ -65,7 +65,7 @@ fn print_err(e: Error, verbose: bool) {
 type ResultIter = sgiter::GatherIter<Result<(DirEntry, String), Error>>;
 
 /// Allocates memory for and collects all successfull hashes before sorting and
-/// then printing. Errors are printed immidiately.
+/// then printing. Errors are printed immediately.
 fn do_sorted_output(res:ResultIter, verbose:bool) {
     let mut tuples = vec![];
     for r in res {
@@ -80,7 +80,7 @@ fn do_sorted_output(res:ResultIter, verbose:bool) {
     }
 }
 
-/// Prints both errors and successful hashes immidiately without sorting.
+/// Prints both errors and successful hashes immediately without sorting.
 fn do_unsorted_output(res:ResultIter, verbose:bool) {
     for r in res {
         match r {
