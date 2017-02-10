@@ -5,5 +5,5 @@ authors = ["anderejd <rajder@gmail.com>"]
 
 [dependencies]
 sgiter = { git = "https://github.com/anderejd/sgiter" }
-rust-crypto = "0.2"
+rust-crypto = "0"
 walkdir = "1"
