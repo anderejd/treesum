@@ -5,5 +5,9 @@ authors = ["anderejd <rajder@gmail.com>"]
 
 [dependencies]
 sgiter = { git = "https://github.com/anderejd/sgiter" }
-rust-crypto = "0"
-walkdir = "1"
+walkdir = "*"
+sha1 = "0.2"
+
+# [profile.release]
+# debug = true
+

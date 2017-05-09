@@ -10,12 +10,11 @@ stderr. Example output:
 */
 #![deny(warnings)]
 
-extern crate crypto;
 extern crate sgiter;
 extern crate walkdir;
+extern crate sha1;
 
-use self::crypto::digest::Digest;
-use self::crypto::sha1::Sha1;
+use sha1::Sha1;
 use std::env;
 use std::fs::File;
 use std::io::Read;
@@ -33,9 +32,9 @@ fn calc_hash(p: &Path, hasher: &mut Sha1, buf: &mut [u8]) -> io::Result<String> 
         if num_read == 0 {
             break;
         }
-        hasher.input(&buf[..num_read]);
+        hasher.update(&buf[..num_read]);
     }
-    Ok(hasher.result_str())
+    Ok(hasher.digest().to_string())
 }
 
 fn print_success(t: (DirEntry, String)) {
@@ -97,13 +96,13 @@ fn process_root(root: &Path) -> io::Result<()> {
     let producer_ctor = || WalkDir::new(pb);
     let xform_ctor = || {
         let mut hasher = Sha1::new();
-        let mut buf = [0; 1024 * 8];
+        let mut buf = vec![0u8; 1024 * 8];
         let f = move |e: walkdir::Result<DirEntry>| {
             let e = e.map_err(Error::WalkDir)?;
             if !e.file_type().is_file() {
                 return Err(Error::Ignored(e));
             }
-            calc_hash(e.path(), &mut hasher, &mut buf)
+            calc_hash(e.path(), &mut hasher, buf.as_mut_slice())
                 .map_err(Error::Io)
                 .map(|s| (e, s))
         };
