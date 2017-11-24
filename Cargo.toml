@@ -1,13 +1,11 @@
 [package]
+authors = ["anderejd <rajder@gmail.com>"]
 name = "treesum"
 version = "0.1.0"
-authors = ["anderejd <rajder@gmail.com>"]
 
 [dependencies]
-sgiter = { git = "https://github.com/anderejd/sgiter" }
-walkdir = "*"
-sha1 = "0.2"
+sha1 = "0.2.0"
+walkdir = "2.0.1"
 
-# [profile.release]
-# debug = true
-
+[dependencies.sgiter]
+git = "https://github.com/anderejd/sgiter"
