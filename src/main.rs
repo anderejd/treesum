@@ -11,8 +11,8 @@ stderr. Example output:
 #![deny(warnings)]
 
 extern crate sgiter;
-extern crate walkdir;
 extern crate sha1;
+extern crate walkdir;
 
 use sha1::Sha1;
 use std::env;
