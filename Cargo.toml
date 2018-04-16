@@ -4,8 +4,10 @@ name = "treesum"
 version = "0.1.0"
 
 [dependencies]
-sha1 = "0.2.0"
-walkdir = "2.0.1"
+sha1 = "0.6.0"
+walkdir = "2.1.4"
 
 [dependencies.sgiter]
 git = "https://github.com/anderejd/sgiter"
+#path = "../sgiter"
+

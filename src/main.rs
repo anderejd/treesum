@@ -110,7 +110,7 @@ fn process_root(root: &Path) -> io::Result<()> {
     };
     let results = sgiter::scatter_gather(producer_ctor, xform_ctor);
     let verbose = false; // TODO: add command line flag
-    let sort_successes = true; // TODO: add command line flag
+    let sort_successes = false; // TODO: add command line flag
     if sort_successes {
         do_sorted_output(results, verbose)
     } else {
