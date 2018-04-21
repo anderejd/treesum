@@ -14,6 +14,10 @@ extern crate sgiter;
 extern crate sha1;
 extern crate walkdir;
 
+extern crate env_logger;
+#[macro_use]
+extern crate log;
+
 use sha1::Sha1;
 use std::env;
 use std::fs::File;
@@ -48,20 +52,13 @@ fn print_success(t: &(DirEntry, String)) {
 #[derive(Debug)]
 enum Error {
     Io(io::Error),
-    Ignored(DirEntry),
     WalkDir(walkdir::Error),
 }
 
 /// Helper for handling error reporting levels and printing.
-/// TODO: Use stderr. Find crate?
-fn print_err(e: Error, verbose: bool) {
+fn print_err(e: Error) {
     match e {
-        Error::Ignored(ent) => {
-            if verbose {
-                println!("ignored: {}", ent.path().display())
-            }
-        }
-        _ => println!("ERROR: {:?}", e),
+        _ => error!("ERROR: {:?}", e),
     }
 }
 
@@ -69,12 +66,12 @@ type ResultIter = sgiter::GatherIter<Result<(DirEntry, String), Error>>;
 
 /// Allocates memory for and collects all successfull hashes before sorting and
 /// then printing. Errors are printed immediately.
-fn do_sorted_output(res: ResultIter, verbose: bool) {
+fn do_sorted_output(res: ResultIter) {
     let mut tuples = vec![];
     for r in res {
         match r {
             Ok(t) => tuples.push(t),
-            Err(e) => print_err(e, verbose),
+            Err(e) => print_err(e),
         }
     }
     tuples.sort_by(|a, b| a.1.cmp(&b.1));
@@ -84,11 +81,11 @@ fn do_sorted_output(res: ResultIter, verbose: bool) {
 }
 
 /// Prints both errors and successful hashes immediately without sorting.
-fn do_unsorted_output(res: ResultIter, verbose: bool) {
+fn do_unsorted_output(res: ResultIter) {
     for r in res {
         match r {
             Ok(t) => print_success(&t),
-            Err(e) => print_err(e, verbose),
+            Err(e) => print_err(e),
         }
     }
 }
@@ -97,27 +94,28 @@ fn do_unsorted_output(res: ResultIter, verbose: bool) {
 /// pass on result iterator to handler for either sorted or unsorted output.
 fn process_root(root: &Path) -> io::Result<()> {
     let pb = root.to_path_buf();
-    let producer_ctor = || WalkDir::new(pb);
+    let producer_ctor = || {
+        WalkDir::new(pb).into_iter().filter(|r| match *r {
+            Err(_) => true,
+            Ok(ref r) => r.file_type().is_file(),
+        })
+    };
     let xform_ctor = || {
         let mut hasher = Sha1::new();
         let mut buf = vec![0u8; 1024 * 8];
         move |e: walkdir::Result<DirEntry>| {
             let e = e.map_err(Error::WalkDir)?;
-            if !e.file_type().is_file() {
-                return Err(Error::Ignored(e));
-            }
             calc_hash(e.path(), &mut hasher, buf.as_mut_slice())
                 .map_err(Error::Io)
                 .map(|s| (e, s))
         }
     };
     let results = sgiter::scatter_gather(producer_ctor, xform_ctor);
-    let verbose = false; // TODO: add command line flag
     let sort_successes = false; // TODO: add command line flag
     if sort_successes {
-        do_sorted_output(results, verbose)
+        do_sorted_output(results)
     } else {
-        do_unsorted_output(results, verbose)
+        do_unsorted_output(results)
     }
     Ok(())
 }

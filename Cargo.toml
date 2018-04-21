@@ -6,6 +6,8 @@ version = "0.1.0"
 [dependencies]
 sha1 = "0.6.0"
 walkdir = "2.1.4"
+env_logger = "0.5.9"
+log = "0.4.1"
 
 [dependencies.sgiter]
 git = "https://github.com/anderejd/sgiter"
