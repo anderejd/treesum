@@ -41,7 +41,7 @@ fn calc_hash(
     Ok(hasher.digest().to_string())
 }
 
-fn print_success(t: (DirEntry, String)) {
+fn print_success(t: &(DirEntry, String)) {
     println!("{}\t{}", t.1, t.0.path().display());
 }
 
@@ -79,7 +79,7 @@ fn do_sorted_output(res: ResultIter, verbose: bool) {
     }
     tuples.sort_by(|a, b| a.1.cmp(&b.1));
     for t in tuples {
-        print_success(t);
+        print_success(&t);
     }
 }
 
@@ -87,7 +87,7 @@ fn do_sorted_output(res: ResultIter, verbose: bool) {
 fn do_unsorted_output(res: ResultIter, verbose: bool) {
     for r in res {
         match r {
-            Ok(t) => print_success(t),
+            Ok(t) => print_success(&t),
             Err(e) => print_err(e, verbose),
         }
     }
@@ -101,7 +101,7 @@ fn process_root(root: &Path) -> io::Result<()> {
     let xform_ctor = || {
         let mut hasher = Sha1::new();
         let mut buf = vec![0u8; 1024 * 8];
-        let f = move |e: walkdir::Result<DirEntry>| {
+        move |e: walkdir::Result<DirEntry>| {
             let e = e.map_err(Error::WalkDir)?;
             if !e.file_type().is_file() {
                 return Err(Error::Ignored(e));
@@ -109,8 +109,7 @@ fn process_root(root: &Path) -> io::Result<()> {
             calc_hash(e.path(), &mut hasher, buf.as_mut_slice())
                 .map_err(Error::Io)
                 .map(|s| (e, s))
-        };
-        f
+        }
     };
     let results = sgiter::scatter_gather(producer_ctor, xform_ctor);
     let verbose = false; // TODO: add command line flag
@@ -124,7 +123,7 @@ fn process_root(root: &Path) -> io::Result<()> {
 }
 
 fn main() {
-    let root = env::args().nth(1).unwrap_or(".".to_string());
+    let root = env::args().nth(1).unwrap_or_else(|| ".".to_string());
     let root = Path::new(root.as_str());
     process_root(root).unwrap()
 }
