@@ -24,7 +24,11 @@ use walkdir::DirEntry;
 use walkdir::WalkDir;
 
 /// Calculate a checksum for a file.
-fn calc_hash(p: &Path, hasher: &mut Sha1, buf: &mut [u8]) -> io::Result<String> {
+fn calc_hash(
+    p: &Path,
+    hasher: &mut Sha1,
+    buf: &mut [u8],
+) -> io::Result<String> {
     hasher.reset();
     let mut f = File::open(p)?;
     loop {
