@@ -55,13 +55,6 @@ enum Error {
     WalkDir(walkdir::Error),
 }
 
-/// Helper for handling error reporting levels and printing.
-fn print_err(e: Error) {
-    match e {
-        _ => error!("ERROR: {:?}", e),
-    }
-}
-
 type ResultIter = sgiter::GatherIter<Result<(DirEntry, String), Error>>;
 
 /// Allocates memory for and collects all successfull hashes before sorting and
@@ -71,7 +64,7 @@ fn do_sorted_output(res: ResultIter) {
     for r in res {
         match r {
             Ok(t) => tuples.push(t),
-            Err(e) => print_err(e),
+            Err(e) => error!("{:?}", e)
         }
     }
     tuples.sort_by(|a, b| a.1.cmp(&b.1));
@@ -85,7 +78,7 @@ fn do_unsorted_output(res: ResultIter) {
     for r in res {
         match r {
             Ok(t) => print_success(&t),
-            Err(e) => print_err(e),
+            Err(e) => error!("{:?}", e)
         }
     }
 }
