@@ -10,7 +10,7 @@ stderr. Example output:
 */
 #![deny(warnings)]
 
-extern crate sgiter;
+extern crate parallel_iterator;
 extern crate sha1;
 extern crate walkdir;
 
@@ -26,6 +26,7 @@ use std::io;
 use std::path::Path;
 use walkdir::DirEntry;
 use walkdir::WalkDir;
+use parallel_iterator::ParallelIterator;
 
 /// Calculate a checksum for a file.
 fn calc_hash(
@@ -55,7 +56,7 @@ enum Error {
     WalkDir(walkdir::Error),
 }
 
-type ResultIter = sgiter::GatherIter<Result<(DirEntry, String), Error>>;
+type ResultIter = ParallelIterator<Result<(DirEntry, String), Error>>;
 
 /// Allocates memory for and collects all successfull hashes before sorting and
 /// then printing. Errors are printed immediately.
@@ -83,8 +84,6 @@ fn do_unsorted_output(res: ResultIter) {
     }
 }
 
-/// Bind constructors for producer and consumers, start scatter gather and
-/// pass on result iterator to handler for either sorted or unsorted output.
 fn process_root(root: &Path) -> io::Result<()> {
     let pb = root.to_path_buf();
     let producer_ctor = || {
@@ -103,7 +102,7 @@ fn process_root(root: &Path) -> io::Result<()> {
                 .map(|s| (e, s))
         }
     };
-    let results = sgiter::scatter_gather(producer_ctor, xform_ctor);
+    let results = ParallelIterator::new(producer_ctor, xform_ctor);
     let sort_successes = false; // TODO: add command line flag
     if sort_successes {
         do_sorted_output(results)

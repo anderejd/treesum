@@ -8,8 +8,11 @@ sha1 = "0.6.0"
 walkdir = "2.1.4"
 env_logger = "0.5.9"
 log = "0.4.1"
+parallel-iterator = "0.1.2"
 
-[dependencies.sgiter]
-git = "https://github.com/anderejd/sgiter"
-#path = "../sgiter"
+#[profile.debug]
+#panic = "abort"
+
+#[profile.release]
+#panic = "abort"
 
