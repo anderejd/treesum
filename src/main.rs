@@ -1,23 +1,15 @@
-/*!
-Treesum calculates check|sums| for files in directory |tree|s. The successful
-results are written to stdout while errors and status messages are written to
-stderr. Example output:
+#![forbid(unsafe_code)]
+#![forbid(warnings)]
 
-```
-01010101010101010101	root/some_subdir/cat.gif
-12121212121212121212	root/I Like Space In My Paths/HerpDerp Final 3 (17).xlsx
-```
-*/
-#![deny(warnings)]
-
+extern crate env_logger;
 extern crate parallel_iterator;
 extern crate sha1;
 extern crate walkdir;
 
-extern crate env_logger;
 #[macro_use]
 extern crate log;
 
+use parallel_iterator::ParallelIterator;
 use sha1::Sha1;
 use std::env;
 use std::fs::File;
@@ -26,7 +18,6 @@ use std::io;
 use std::path::Path;
 use walkdir::DirEntry;
 use walkdir::WalkDir;
-use parallel_iterator::ParallelIterator;
 
 /// Calculate a checksum for a file.
 fn calc_hash(
@@ -103,8 +94,8 @@ fn process_root(root: &Path) -> io::Result<()> {
         }
     };
     let results = ParallelIterator::new(producer_ctor, xform_ctor);
-    let sort_successes = false; // TODO: add command line flag
-    if sort_successes {
+    let sort_results = false; // TODO: add command line flag
+    if sort_results {
         do_sorted_output(results)
     } else {
         do_unsorted_output(results)
