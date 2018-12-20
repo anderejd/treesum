@@ -1,6 +1,11 @@
 [package]
 authors = ["anderejd <rajder@gmail.com>"]
+description = "Calculates checksums for file trees, on all your cores."
+keywords = ["command-line-utilities"]
+license = "Apache-2.0/MIT"
 name = "treesum"
+readme = "README.md"
+repository = "https://github.com/anderejd/treesum"
 version = "0.1.0"
 
 [dependencies]
