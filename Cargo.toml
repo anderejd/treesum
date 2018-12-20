@@ -1,7 +1,8 @@
 [package]
 authors = ["anderejd <rajder@gmail.com>"]
 description = "Calculates checksums for file trees, on all your cores."
-keywords = ["command-line-utilities"]
+keywords = ["checksum", "recursive"]
+categories = ["command-line-utilities"]
 license = "Apache-2.0/MIT"
 name = "treesum"
 readme = "README.md"
