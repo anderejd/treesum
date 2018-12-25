@@ -10,3 +10,11 @@ Parallel SHA-1 checksum calculator for file trees.
  - Prints errors to stderr.
  - Returns 0 on success.
 
+Changelog
+---------
+
+### 0.1.1
+ - Updated dependencies.
+
+### 0.1.0
+ - First release.
