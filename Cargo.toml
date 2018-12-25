@@ -14,5 +14,5 @@ sha1 = "0.6.0"
 walkdir = "2.2.7"
 env_logger = "0.6.0"
 log = "0.4.6"
-parallel-iterator = "0.1.2"
+parallel-iterator = "0.1.3"
 
