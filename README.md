@@ -13,6 +13,9 @@ Parallel SHA-1 checksum calculator for file trees.
 Changelog
 ---------
 
+### 0.1.2
+ - Updated dependencies.
+
 ### 0.1.1
  - Updated dependencies.
 
