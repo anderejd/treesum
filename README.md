@@ -1,6 +1,8 @@
 treesum
 =======
 
+[![unsafe forbidden](https://img.shields.io/badge/unsafe-forbidden-success.svg)](https://github.com/rust-secure-code/safety-dance/)
+
 Parallel SHA-1 checksum calculator for file trees.
 
  - Outputs **_sha1sum compatible format_** (`sha1sum --check FILE`).
